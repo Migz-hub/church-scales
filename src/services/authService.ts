@@ -89,9 +89,18 @@ export const authService = {
     return mapUser(data.user, profile?.name ?? "");
   },
 
-  async changePassword(_userId: string, _current: string, next: string): Promise<void> {
-    // Supabase doesn't require current password verification in updateUser,
-    // but we still ask for it in the UI as a UX safeguard.
+  async changePassword(_userId: string, current: string, next: string): Promise<void> {
+    // Verify the current password before allowing the change. This protects
+    // against an attacker with a hijacked session token taking over the account
+    // by silently rotating the password.
+    const { data: userData } = await supabase.auth.getUser();
+    const email = userData.user?.email;
+    if (!email) throw new Error("Sessão expirada.");
+    const { error: verifyError } = await supabase.auth.signInWithPassword({
+      email,
+      password: current,
+    });
+    if (verifyError) throw new Error("Senha atual incorreta.");
     const { error } = await supabase.auth.updateUser({ password: next });
     if (error) throw new Error(translate(error.message));
   },
