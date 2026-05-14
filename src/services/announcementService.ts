@@ -194,15 +194,6 @@ export const announcementService = {
     if (patch.message !== undefined) upd.message = patch.message;
     if (patch.priority !== undefined) upd.priority = patch.priority;
     if (patch.audience !== undefined) Object.assign(upd, audienceToCols(patch.audience));
-  async update(
-    id: string,
-    patch: Partial<Pick<Announcement, "title" | "message" | "priority" | "audience" | "scheduledAt">>,
-  ): Promise<void> {
-    const upd: Record<string, unknown> = {};
-    if (patch.title !== undefined) upd.title = patch.title;
-    if (patch.message !== undefined) upd.message = patch.message;
-    if (patch.priority !== undefined) upd.priority = patch.priority;
-    if (patch.audience !== undefined) Object.assign(upd, audienceToCols(patch.audience));
     if (patch.scheduledAt !== undefined) upd.scheduled_at = patch.scheduledAt ?? null;
     const { error } = await supabase.from("announcements").update(upd as never).eq("id", id);
     if (error) throw new Error(error.message);
