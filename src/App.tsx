@@ -71,16 +71,29 @@ const App = () => (
               </Route>
 
               <Route
+                path="/ministerios/entrada"
                 element={
                   <ProtectedRoute requireMinistry={false}>
-                    <AppLayout />
+                    <MinistryEntry />
                   </ProtectedRoute>
                 }
-              >
-                <Route path="/ministerios/entrada" element={<MinistryEntry />} />
-                <Route path="/ministerios/criar" element={<MinistryCreate />} />
-                <Route path="/ministerios/ingressar" element={<MinistryJoin />} />
-              </Route>
+              />
+              <Route
+                path="/ministerios/criar"
+                element={
+                  <ProtectedRoute requireMinistry={false}>
+                    <MinistryCreate />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/ministerios/ingressar"
+                element={
+                  <ProtectedRoute requireMinistry={false}>
+                    <MinistryJoin />
+                  </ProtectedRoute>
+                }
+              />
 
               <Route path="/index" element={<Navigate to="/" replace />} />
               <Route path="*" element={<NotFound />} />
