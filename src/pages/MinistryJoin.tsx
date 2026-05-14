@@ -10,6 +10,7 @@ import { ministryService } from "@/services/ministryService";
 import { notificationService } from "@/services/notificationService";
 import { toast } from "sonner";
 import { ChevronDown, ChevronUp, Info, Loader2, Send, Ticket } from "lucide-react";
+import { FullscreenPage } from "@/components/FullscreenPage";
 
 const schema = z.object({ code: z.string().trim().min(4, "Código inválido").max(12) });
 
@@ -45,7 +46,8 @@ export default function MinistryJoin() {
   };
 
   return (
-    <div className="w-full max-w-xl mx-auto space-y-4">
+    <FullscreenPage backTo="/ministerios/entrada" className="max-w-xl">
+      <div className="space-y-4">
       <h1 className="text-2xl font-semibold tracking-tight">Ingressar em um ministério</h1>
         <form
           onSubmit={handleSubmit(onSubmit)}
@@ -91,7 +93,8 @@ export default function MinistryJoin() {
             </ol>
           )}
         </div>
-    </div>
+      </div>
+    </FullscreenPage>
   );
 }
 

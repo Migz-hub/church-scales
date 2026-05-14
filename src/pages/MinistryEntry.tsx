@@ -1,13 +1,15 @@
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { ChevronRight, LogIn, Plus } from "lucide-react";
+import { FullscreenPage } from "@/components/FullscreenPage";
 
 export default function MinistryEntry() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
   return (
-    <div className="w-full max-w-xl mx-auto">
+    <FullscreenPage backTo="/dashboard" className="max-w-xl">
+      <div className="w-full">
       <div className="rounded-2xl border border-border bg-card p-5 flex items-center gap-3">
         <div className="h-11 w-11 rounded-full bg-primary/15 text-primary flex items-center justify-center font-semibold">
           {user?.name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase()}
@@ -41,7 +43,8 @@ export default function MinistryEntry() {
           />
         </div>
       </div>
-    </div>
+      </div>
+    </FullscreenPage>
   );
 }
 
