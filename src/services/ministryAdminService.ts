@@ -1,4 +1,4 @@
-import { delay, readDB, uid, writeDB } from "./db";
+import { supabase } from "@/integrations/supabase/client";
 import type {
   MemberPermissions,
   MinistryDefaults,
@@ -22,126 +22,175 @@ const DEFAULT_PERMISSIONS: Record<PermissionKey, boolean> = {
 export const ministryAdminService = {
   // ---------- Defaults / Info ----------
   async getDefaults(ministryId: string): Promise<MinistryDefaults> {
-    await delay(60);
-    const db = readDB();
-    let d = db.ministryDefaults!.find((x) => x.ministryId === ministryId);
-    if (!d) {
-      d = { ministryId, permissions: { ...DEFAULT_PERMISSIONS } };
-      db.ministryDefaults!.push(d);
-      writeDB(db);
-    }
-    return d;
+    const { data } = await supabase
+      .from("ministries")
+      .select("description, banner_url, avatar_url, default_permissions")
+      .eq("id", ministryId)
+      .maybeSingle();
+    return {
+      ministryId,
+      description: data?.description ?? undefined,
+      bannerUrl: data?.banner_url ?? undefined,
+      avatarUrl: data?.avatar_url ?? undefined,
+      permissions: { ...DEFAULT_PERMISSIONS, ...(data?.default_permissions as Record<string, boolean> ?? {}) },
+    };
   },
+
   async updateDefaults(ministryId: string, patch: Partial<MinistryDefaults>): Promise<MinistryDefaults> {
-    await delay(80);
-    const db = readDB();
-    let d = db.ministryDefaults!.find((x) => x.ministryId === ministryId);
-    if (!d) {
-      d = { ministryId, permissions: { ...DEFAULT_PERMISSIONS } };
-      db.ministryDefaults!.push(d);
+    const upd: Record<string, unknown> = {};
+    if (patch.description !== undefined) upd.description = patch.description ?? null;
+    if (patch.bannerUrl !== undefined) upd.banner_url = patch.bannerUrl ?? null;
+    if (patch.avatarUrl !== undefined) upd.avatar_url = patch.avatarUrl ?? null;
+    if (patch.permissions !== undefined) upd.default_permissions = patch.permissions;
+    if (Object.keys(upd).length > 0) {
+      const { error } = await supabase.from("ministries").update(upd).eq("id", ministryId);
+      if (error) throw new Error(error.message);
     }
-    Object.assign(d, patch);
-    writeDB(db);
-    return d;
+    return this.getDefaults(ministryId);
   },
 
   // ---------- Functions ----------
   async listFunctions(ministryId: string): Promise<MinistryFunction[]> {
-    await delay(80);
-    const db = readDB();
-    return db.functions!.filter((f) => f.ministryId === ministryId);
-  },
-  async createFunction(ministryId: string, input: { name: string; icon?: string }): Promise<MinistryFunction> {
-    await delay();
-    const db = readDB();
-    const fn: MinistryFunction = {
-      id: uid("fn"),
-      ministryId,
-      name: input.name.trim(),
-      icon: input.icon,
-      active: true,
-    };
-    db.functions!.push(fn);
-    writeDB(db);
-    return fn;
-  },
-  async updateFunction(id: string, patch: Partial<MinistryFunction>): Promise<void> {
-    await delay();
-    const db = readDB();
-    const fn = db.functions!.find((f) => f.id === id);
-    if (!fn) throw new Error("Função não encontrada");
-    Object.assign(fn, patch);
-    writeDB(db);
-  },
-  async deleteFunction(id: string): Promise<void> {
-    await delay();
-    const db = readDB();
-    db.functions = db.functions!.filter((f) => f.id !== id);
-    db.teams = db.teams!.map((t) => ({ ...t, functionIds: t.functionIds.filter((x) => x !== id) }));
-    db.memberPermissions = db.memberPermissions!.map((mp) => ({
-      ...mp,
-      functionIds: mp.functionIds.filter((x) => x !== id),
+    const { data } = await supabase
+      .from("ministry_functions")
+      .select("*")
+      .eq("ministry_id", ministryId);
+    return (data ?? []).map((f) => ({
+      id: f.id,
+      ministryId: f.ministry_id,
+      name: f.name,
+      icon: f.icon ?? undefined,
+      active: f.active,
     }));
-    writeDB(db);
+  },
+
+  async createFunction(ministryId: string, input: { name: string; icon?: string }): Promise<MinistryFunction> {
+    const { data, error } = await supabase
+      .from("ministry_functions")
+      .insert({
+        ministry_id: ministryId,
+        name: input.name.trim(),
+        icon: input.icon ?? null,
+      })
+      .select()
+      .single();
+    if (error || !data) throw new Error(error?.message ?? "Erro ao criar função.");
+    return {
+      id: data.id,
+      ministryId: data.ministry_id,
+      name: data.name,
+      icon: data.icon ?? undefined,
+      active: data.active,
+    };
+  },
+
+  async updateFunction(id: string, patch: Partial<MinistryFunction>): Promise<void> {
+    const upd: Record<string, unknown> = {};
+    if (patch.name !== undefined) upd.name = patch.name;
+    if (patch.icon !== undefined) upd.icon = patch.icon ?? null;
+    if (patch.active !== undefined) upd.active = patch.active;
+    const { error } = await supabase.from("ministry_functions").update(upd).eq("id", id);
+    if (error) throw new Error(error.message);
+  },
+
+  async deleteFunction(id: string): Promise<void> {
+    const { error } = await supabase.from("ministry_functions").delete().eq("id", id);
+    if (error) throw new Error(error.message);
   },
 
   // ---------- Teams ----------
   async listTeams(ministryId: string): Promise<MinistryTeam[]> {
-    await delay(80);
-    const db = readDB();
-    return db.teams!.filter((t) => t.ministryId === ministryId);
+    const { data: teams } = await supabase
+      .from("ministry_teams")
+      .select("*")
+      .eq("ministry_id", ministryId);
+    const list = teams ?? [];
+    if (list.length === 0) return [];
+    const { data: links } = await supabase
+      .from("ministry_team_functions")
+      .select("team_id, function_id")
+      .in("team_id", list.map((t) => t.id));
+    const fnMap = new Map<string, string[]>();
+    (links ?? []).forEach((l) => {
+      const arr = fnMap.get(l.team_id) ?? [];
+      arr.push(l.function_id);
+      fnMap.set(l.team_id, arr);
+    });
+    return list.map((t) => ({
+      id: t.id,
+      ministryId: t.ministry_id,
+      name: t.name,
+      functionIds: fnMap.get(t.id) ?? [],
+    }));
   },
+
   async createTeam(ministryId: string, name: string, functionIds: string[] = []): Promise<MinistryTeam> {
-    await delay();
-    const db = readDB();
-    const team: MinistryTeam = { id: uid("team"), ministryId, name: name.trim(), functionIds };
-    db.teams!.push(team);
-    writeDB(db);
-    return team;
+    const { data, error } = await supabase
+      .from("ministry_teams")
+      .insert({ ministry_id: ministryId, name: name.trim() })
+      .select()
+      .single();
+    if (error || !data) throw new Error(error?.message ?? "Erro ao criar equipe.");
+    if (functionIds.length > 0) {
+      await supabase
+        .from("ministry_team_functions")
+        .insert(functionIds.map((fid) => ({ team_id: data.id, function_id: fid })));
+    }
+    return { id: data.id, ministryId: data.ministry_id, name: data.name, functionIds };
   },
+
   async updateTeam(id: string, patch: Partial<MinistryTeam>): Promise<void> {
-    await delay();
-    const db = readDB();
-    const t = db.teams!.find((x) => x.id === id);
-    if (!t) throw new Error("Equipe não encontrada");
-    Object.assign(t, patch);
-    writeDB(db);
+    if (patch.name !== undefined) {
+      const { error } = await supabase.from("ministry_teams").update({ name: patch.name }).eq("id", id);
+      if (error) throw new Error(error.message);
+    }
+    if (patch.functionIds !== undefined) {
+      await supabase.from("ministry_team_functions").delete().eq("team_id", id);
+      if (patch.functionIds.length > 0) {
+        await supabase
+          .from("ministry_team_functions")
+          .insert(patch.functionIds.map((fid) => ({ team_id: id, function_id: fid })));
+      }
+    }
   },
+
   async deleteTeam(id: string): Promise<void> {
-    await delay();
-    const db = readDB();
-    db.teams = db.teams!.filter((t) => t.id !== id);
-    writeDB(db);
+    const { error } = await supabase.from("ministry_teams").delete().eq("id", id);
+    if (error) throw new Error(error.message);
   },
 
   // ---------- Member Permissions ----------
   async getMemberConfig(ministryId: string, memberId: string): Promise<MemberPermissions> {
-    await delay(60);
-    const db = readDB();
-    let mp = db.memberPermissions!.find((x) => x.ministryId === ministryId && x.memberId === memberId);
-    if (!mp) {
-      mp = { ministryId, memberId, overrides: {}, functionIds: [] };
-      db.memberPermissions!.push(mp);
-      writeDB(db);
-    }
-    return mp;
+    const { data } = await supabase
+      .from("member_permissions")
+      .select("*")
+      .eq("ministry_id", ministryId)
+      .eq("member_id", memberId)
+      .maybeSingle();
+    return {
+      ministryId,
+      memberId,
+      overrides: (data?.overrides as Partial<Record<PermissionKey, boolean>>) ?? {},
+      functionIds: (data?.function_ids as string[]) ?? [],
+    };
   },
+
   async updateMemberConfig(
     ministryId: string,
     memberId: string,
     patch: Partial<Pick<MemberPermissions, "overrides" | "functionIds">>,
   ): Promise<MemberPermissions> {
-    await delay(80);
-    const db = readDB();
-    let mp = db.memberPermissions!.find((x) => x.ministryId === ministryId && x.memberId === memberId);
-    if (!mp) {
-      mp = { ministryId, memberId, overrides: {}, functionIds: [] };
-      db.memberPermissions!.push(mp);
-    }
-    if (patch.overrides) mp.overrides = patch.overrides;
-    if (patch.functionIds) mp.functionIds = patch.functionIds;
-    writeDB(db);
-    return mp;
+    const upd: Record<string, unknown> = {
+      ministry_id: ministryId,
+      member_id: memberId,
+    };
+    if (patch.overrides !== undefined) upd.overrides = patch.overrides;
+    if (patch.functionIds !== undefined) upd.function_ids = patch.functionIds;
+    const { error } = await supabase
+      .from("member_permissions")
+      .upsert(upd, { onConflict: "ministry_id,member_id" });
+    if (error) throw new Error(error.message);
+    return this.getMemberConfig(ministryId, memberId);
   },
 };
 

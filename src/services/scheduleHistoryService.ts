@@ -1,46 +1,80 @@
-import { delay, readDB, uid, writeDB } from "./db";
-import type { ScheduleHistoryEntry } from "@/types";
+import { supabase } from "@/integrations/supabase/client";
+import type { ScheduleHistoryEntry, ScheduleHistoryChange } from "@/types";
 
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+type Row = {
+  id: string;
+  ministry_id: string;
+  schedule_id: string;
+  schedule_date: string;
+  actor_id: string;
+  kind: ScheduleHistoryEntry["kind"];
+  summary: string | null;
+  changes: unknown;
+  added_members: unknown;
+  removed_members: unknown;
+  details: unknown;
+  created_at: string;
+};
 
-function pruneExpired(): void {
-  const db = readDB();
-  const now = Date.now();
-  const before = (db.scheduleHistory ?? []).length;
-  db.scheduleHistory = (db.scheduleHistory ?? []).filter((e) => {
-    const dt = new Date(e.scheduleDate).getTime();
-    if (Number.isNaN(dt)) return true;
-    return dt + WEEK_MS > now;
-  });
-  if ((db.scheduleHistory ?? []).length !== before) writeDB(db);
+function map(r: Row, actorName: string): ScheduleHistoryEntry {
+  return {
+    id: r.id,
+    ministryId: r.ministry_id,
+    scheduleId: r.schedule_id,
+    scheduleDate: r.schedule_date,
+    createdAt: r.created_at,
+    actorId: r.actor_id,
+    actorName,
+    kind: r.kind,
+    summary: r.summary ?? undefined,
+    changes: (r.changes as ScheduleHistoryChange[] | null) ?? undefined,
+    addedMembers: (r.added_members as { name: string; label?: string }[] | null) ?? undefined,
+    removedMembers: (r.removed_members as { name: string; label?: string }[] | null) ?? undefined,
+    details: (r.details as Record<string, string | undefined> | null) ?? undefined,
+  };
+}
+
+async function nameMap(ids: string[]): Promise<Map<string, string>> {
+  if (ids.length === 0) return new Map();
+  const { data } = await supabase.from("profiles").select("id, name").in("id", ids);
+  return new Map((data ?? []).map((p) => [p.id, p.name]));
 }
 
 export const scheduleHistoryService = {
   async list(scheduleId: string): Promise<ScheduleHistoryEntry[]> {
-    pruneExpired();
-    await delay(60);
-    const db = readDB();
-    return (db.scheduleHistory ?? [])
-      .filter((e) => e.scheduleId === scheduleId)
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const { data } = await supabase
+      .from("schedule_history")
+      .select("*")
+      .eq("schedule_id", scheduleId)
+      .order("created_at", { ascending: false });
+    const rows = (data ?? []) as Row[];
+    const names = await nameMap(Array.from(new Set(rows.map((r) => r.actor_id))));
+    return rows.map((r) => map(r, names.get(r.actor_id) ?? ""));
   },
 
   async add(
     input: Omit<ScheduleHistoryEntry, "id" | "createdAt">,
   ): Promise<ScheduleHistoryEntry> {
-    const db = readDB();
-    db.scheduleHistory ??= [];
-    const entry: ScheduleHistoryEntry = {
-      ...input,
-      id: uid("hst"),
-      createdAt: new Date().toISOString(),
-    };
-    db.scheduleHistory.push(entry);
-    writeDB(db);
-    return entry;
+    const { data, error } = await supabase
+      .from("schedule_history")
+      .insert({
+        ministry_id: input.ministryId,
+        schedule_id: input.scheduleId,
+        schedule_date: input.scheduleDate,
+        actor_id: input.actorId,
+        kind: input.kind,
+        summary: input.summary ?? null,
+        changes: input.changes ?? null,
+        added_members: input.addedMembers ?? null,
+        removed_members: input.removedMembers ?? null,
+        details: input.details ?? null,
+      })
+      .select()
+      .single();
+    if (error || !data) throw new Error(error?.message ?? "Erro ao registrar histórico.");
+    return map(data as Row, input.actorName);
   },
 
-  /** Logs an unavailability event on every schedule (in given ministry) overlapping the date range. */
   async logUnavailabilityForOverlapping(input: {
     ministryId: string;
     actorId: string;
@@ -49,29 +83,27 @@ export const scheduleHistoryService = {
     startsAt: string;
     endsAt: string;
   }): Promise<void> {
-    const db = readDB();
-    db.scheduleHistory ??= [];
-    const start = new Date(input.startsAt).getTime();
-    const end = new Date(input.endsAt).getTime();
-    const matches = db.schedules.filter((s) => {
-      if (s.ministryId !== input.ministryId) return false;
-      const sd = new Date(s.date).getTime();
-      return sd >= start && sd <= end + 86_399_999;
-    });
-    for (const s of matches) {
-      const entry: ScheduleHistoryEntry = {
-        id: uid("hst"),
-        ministryId: s.ministryId,
-        scheduleId: s.id,
-        scheduleDate: s.date,
-        createdAt: new Date().toISOString(),
-        actorId: input.actorId,
-        actorName: input.actorName,
-        kind: "unavailability",
-        summary: `${input.targetUserName} informou estar indisponível.`,
-      };
-      db.scheduleHistory.push(entry);
-    }
-    if (matches.length > 0) writeDB(db);
+    // Schedules whose date falls within the unavailability range
+    const startISO = new Date(input.startsAt).toISOString();
+    const endDate = new Date(input.endsAt);
+    endDate.setDate(endDate.getDate() + 1);
+    const endISO = endDate.toISOString();
+    const { data: schedules } = await supabase
+      .from("schedules")
+      .select("id, ministry_id, date")
+      .eq("ministry_id", input.ministryId)
+      .gte("date", startISO)
+      .lt("date", endISO);
+    const list = schedules ?? [];
+    if (list.length === 0) return;
+    const rows = list.map((s) => ({
+      ministry_id: s.ministry_id,
+      schedule_id: s.id,
+      schedule_date: s.date,
+      actor_id: input.actorId,
+      kind: "unavailability" as const,
+      summary: `${input.targetUserName} informou estar indisponível.`,
+    }));
+    await supabase.from("schedule_history").insert(rows);
   },
 };
