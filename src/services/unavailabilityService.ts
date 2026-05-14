@@ -84,7 +84,7 @@ export const unavailabilityService = {
     if (patch.endsAt) upd.ends_at = patch.endsAt;
     const { data, error } = await supabase
       .from("unavailabilities")
-      .update(upd)
+      .update(upd as never)
       .eq("id", id)
       .select()
       .maybeSingle();

@@ -128,7 +128,7 @@ export const scheduleService = {
     if (patch.requireConfirmation !== undefined) upd.require_confirmation = patch.requireConfirmation;
     const { data, error } = await supabase
       .from("schedules")
-      .update(upd)
+      .update(upd as never)
       .eq("id", scheduleId)
       .select()
       .single();

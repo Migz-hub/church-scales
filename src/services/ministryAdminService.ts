@@ -43,7 +43,7 @@ export const ministryAdminService = {
     if (patch.avatarUrl !== undefined) upd.avatar_url = patch.avatarUrl ?? null;
     if (patch.permissions !== undefined) upd.default_permissions = patch.permissions;
     if (Object.keys(upd).length > 0) {
-      const { error } = await supabase.from("ministries").update(upd).eq("id", ministryId);
+      const { error } = await supabase.from("ministries").update(upd as never).eq("id", ministryId);
       if (error) throw new Error(error.message);
     }
     return this.getDefaults(ministryId);
@@ -89,7 +89,7 @@ export const ministryAdminService = {
     if (patch.name !== undefined) upd.name = patch.name;
     if (patch.icon !== undefined) upd.icon = patch.icon ?? null;
     if (patch.active !== undefined) upd.active = patch.active;
-    const { error } = await supabase.from("ministry_functions").update(upd).eq("id", id);
+    const { error } = await supabase.from("ministry_functions").update(upd as never).eq("id", id);
     if (error) throw new Error(error.message);
   },
 
@@ -180,7 +180,7 @@ export const ministryAdminService = {
     memberId: string,
     patch: Partial<Pick<MemberPermissions, "overrides" | "functionIds">>,
   ): Promise<MemberPermissions> {
-    const upd: Record<string, unknown> = {
+    const upd: { ministry_id: string; member_id: string; overrides?: unknown; function_ids?: string[] } = {
       ministry_id: ministryId,
       member_id: memberId,
     };
@@ -188,7 +188,7 @@ export const ministryAdminService = {
     if (patch.functionIds !== undefined) upd.function_ids = patch.functionIds;
     const { error } = await supabase
       .from("member_permissions")
-      .upsert(upd, { onConflict: "ministry_id,member_id" });
+      .upsert(upd as never, { onConflict: "ministry_id,member_id" });
     if (error) throw new Error(error.message);
     return this.getMemberConfig(ministryId, memberId);
   },

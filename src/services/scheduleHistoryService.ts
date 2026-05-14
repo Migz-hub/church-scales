@@ -64,10 +64,10 @@ export const scheduleHistoryService = {
         actor_id: input.actorId,
         kind: input.kind,
         summary: input.summary ?? null,
-        changes: input.changes ?? null,
-        added_members: input.addedMembers ?? null,
-        removed_members: input.removedMembers ?? null,
-        details: input.details ?? null,
+        changes: (input.changes ?? null) as never,
+        added_members: (input.addedMembers ?? null) as never,
+        removed_members: (input.removedMembers ?? null) as never,
+        details: (input.details ?? null) as never,
       })
       .select()
       .single();
