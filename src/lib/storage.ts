@@ -26,7 +26,5 @@ export const storage = {
 };
 
 export const STORAGE_KEYS = {
-  session: "session",
   activeMinistry: "active_ministry",
-  db: "db", // mock backend snapshot
 } as const;
