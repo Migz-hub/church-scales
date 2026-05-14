@@ -43,7 +43,8 @@ export default function MinistryEntry() {
           />
         </div>
       </div>
-    </div>
+      </div>
+    </FullscreenPage>
   );
 }
 
