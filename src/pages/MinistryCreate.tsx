@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { FullscreenPage } from "@/components/FullscreenPage";
 
 interface FunctionItem {
   id: string;
@@ -162,7 +163,8 @@ export default function MinistryCreate() {
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto space-y-6">
+    <FullscreenPage backTo="/ministerios/entrada" className="max-w-2xl">
+      <div className="space-y-6">
       <h1 className="text-2xl font-semibold tracking-tight">Novo ministério</h1>
         <Input
           placeholder="Nome do ministério *"
@@ -289,7 +291,8 @@ export default function MinistryCreate() {
           setEditing(null);
         }}
       />
-    </div>
+      </div>
+    </FullscreenPage>
   );
 }
 
