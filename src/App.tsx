@@ -12,6 +12,7 @@ import Landing from "./pages/Landing";
 import Login from "./pages/auth/Login";
 import SignUp from "./pages/auth/SignUp";
 import ForgotPassword from "./pages/auth/ForgotPassword";
+import ResetPassword from "./pages/auth/ResetPassword";
 import MinistryEntry from "./pages/MinistryEntry";
 import MinistryCreate from "./pages/MinistryCreate";
 import MinistryJoin from "./pages/MinistryJoin";
@@ -46,6 +47,7 @@ const App = () => (
               <Route path="/login" element={<Login />} />
               <Route path="/cadastro" element={<SignUp />} />
               <Route path="/recuperar-senha" element={<ForgotPassword />} />
+              <Route path="/redefinir-senha" element={<ResetPassword />} />
 
               <Route
                 element={
