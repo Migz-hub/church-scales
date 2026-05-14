@@ -1,3 +1,2 @@
-// This project uses Vite + React Router, not TanStack Start.
-// This file is a no-op stub kept only to satisfy the auto-generator.
-export const requireSupabaseAuth = undefined;
+// Stub: TanStack Start auth-middleware is not used in this React Router project.
+export const requireSupabaseAuth = undefined as unknown as never;

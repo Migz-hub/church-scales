@@ -1,3 +1,2 @@
-// This project uses Vite + React Router, not TanStack Start.
-// This file is a no-op stub kept only to satisfy the auto-generator.
-export const attachSupabaseAuth = undefined;
+// Stub: TanStack Start auth-attacher is not used in this React Router project.
+export const attachSupabaseAuth = undefined as unknown as never;
