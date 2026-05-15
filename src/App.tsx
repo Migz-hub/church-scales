@@ -29,6 +29,7 @@ import SettingsAppearance from "./pages/SettingsAppearance";
 import Ministry from "./pages/Ministry";
 import Unavailability from "./pages/Unavailability";
 import Profile from "./pages/Profile";
+import DataExport from "./pages/DataExport";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -70,6 +71,7 @@ const App = () => (
                 <Route path="/ministerio" element={<Ministry />} />
                 <Route path="/indisponibilidade" element={<Unavailability />} />
                 <Route path="/perfil" element={<Profile />} />
+                <Route path="/exportar" element={<DataExport />} />
               </Route>
 
               <Route
