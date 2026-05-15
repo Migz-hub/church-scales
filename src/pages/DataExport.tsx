@@ -112,10 +112,8 @@ export default function DataExport() {
   const exportTable = async (item: ExportItem) => {
     setLoading(item.table);
     try {
-      let query = supabase.from(item.table).select("*").limit(10000);
-      if (item.scoped && active?.id) {
-        query = query.eq("ministry_id", active.id);
-      }
+      const builder: any = supabase.from(item.table).select("*").limit(10000);
+      const query = item.scoped && active?.id ? builder.eq("ministry_id", active.id) : builder;
       const { data, error } = await query;
       if (error) throw error;
       const rows = (data ?? []) as Record<string, unknown>[];
@@ -148,7 +146,7 @@ export default function DataExport() {
     <div className="max-w-4xl mx-auto">
       <PageHeader
         title="Exportar dados"
-        subtitle="Baixe os dados do seu ministério em CSV. Apenas registros aos quais você tem acesso serão exportados."
+        description="Baixe os dados do seu ministério em CSV. Apenas registros aos quais você tem acesso serão exportados."
       />
 
       <div className="space-y-6">
