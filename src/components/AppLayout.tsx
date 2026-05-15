@@ -1,5 +1,5 @@
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
-import { Bell, Calendar, CalendarOff, Home, LogOut, MessageSquare, Settings, Users, ChevronsUpDown, Check } from "lucide-react";
+import { Bell, Calendar, CalendarOff, Download, Home, LogOut, MessageSquare, Settings, Users, ChevronsUpDown, Check } from "lucide-react";
 import { useEffect, useState } from "react";
 import { announcementService } from "@/services/announcementService";
 import { Logo } from "./Logo";
@@ -24,6 +24,7 @@ const navItems = [
   { to: "/ministerio", label: "Ministério", icon: Users },
   { to: "/notificacoes", label: "Notificações", icon: Bell },
   { to: "/indisponibilidade", label: "Indisponibilidade", icon: CalendarOff },
+  { to: "/exportar", label: "Exportar dados", icon: Download },
   { to: "/configuracoes", label: "Configurações", icon: Settings },
 ];
 
