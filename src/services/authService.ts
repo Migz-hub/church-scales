@@ -33,7 +33,7 @@ export const authService = {
     });
     if (error) throw new Error(translate(error.message));
     if (!data.user) throw new Error("Não foi possível criar a conta.");
-    if (!data.session) throw new Error("Conta criada. Confirme seu email antes de entrar.");
+    
     // Ensure profile name is set (trigger uses metadata, but be defensive)
     await supabase
       .from("profiles")
