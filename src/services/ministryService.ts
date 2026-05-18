@@ -120,25 +120,27 @@ export const ministryService = {
     userEmail: string;
     functions?: { name: string; icon?: string }[];
   }): Promise<Ministry> {
-    const { data, error } = await supabase
+    const ministryId = crypto.randomUUID();
+    const inviteCode = genCode();
+    const createdAt = new Date().toISOString();
+    const { error } = await supabase
       .from("ministries")
       .insert({
+        id: ministryId,
         name: input.name.trim(),
-        invite_code: genCode(),
+        invite_code: inviteCode,
         invites_enabled: true,
         owner_id: input.userId,
-      })
-      .select("id, name, invite_code, invites_enabled, owner_id, created_at")
-      .maybeSingle();
-    if (error || !data) throw new Error(error?.message ?? "Erro ao criar ministério.");
+      });
+    if (error) throw new Error(error.message ?? "Erro ao criar ministério.");
     // Add creator as member + owner role
     const { error: memberError } = await supabase.from("ministry_members").insert({
-      ministry_id: data.id,
+      ministry_id: ministryId,
       user_id: input.userId,
     });
     if (memberError) throw new Error(memberError.message);
     const { error: roleError } = await supabase.from("user_roles").insert({
-      ministry_id: data.id,
+      ministry_id: ministryId,
       user_id: input.userId,
       role: "owner",
     });
@@ -148,7 +150,7 @@ export const ministryService = {
         .map((f) => f.name.trim())
         .filter(Boolean)
         .map((name, idx) => ({
-          ministry_id: data.id,
+          ministry_id: ministryId,
           name,
           icon: input.functions![idx].icon,
         }));
@@ -157,7 +159,14 @@ export const ministryService = {
         if (functionsError) throw new Error(functionsError.message);
       }
     }
-    return mapMinistry(data);
+    return {
+      id: ministryId,
+      name: input.name.trim(),
+      inviteCode,
+      invitesEnabled: true,
+      ownerId: input.userId,
+      createdAt,
+    };
   },
 
   async requestJoin(input: { code: string; userId: string; userName: string; userEmail: string }): Promise<{
