@@ -128,19 +128,21 @@ export const ministryService = {
         invites_enabled: true,
         owner_id: input.userId,
       })
-      .select()
-      .single();
+      .select("id, name, invite_code, invites_enabled, owner_id, created_at")
+      .maybeSingle();
     if (error || !data) throw new Error(error?.message ?? "Erro ao criar ministério.");
     // Add creator as member + owner role
-    await supabase.from("ministry_members").insert({
+    const { error: memberError } = await supabase.from("ministry_members").insert({
       ministry_id: data.id,
       user_id: input.userId,
     });
-    await supabase.from("user_roles").insert({
+    if (memberError) throw new Error(memberError.message);
+    const { error: roleError } = await supabase.from("user_roles").insert({
       ministry_id: data.id,
       user_id: input.userId,
       role: "owner",
     });
+    if (roleError) throw new Error(roleError.message);
     if (input.functions && input.functions.length > 0) {
       const rows = input.functions
         .map((f) => f.name.trim())
@@ -151,7 +153,8 @@ export const ministryService = {
           icon: input.functions![idx].icon,
         }));
       if (rows.length > 0) {
-        await supabase.from("ministry_functions").insert(rows);
+        const { error: functionsError } = await supabase.from("ministry_functions").insert(rows);
+        if (functionsError) throw new Error(functionsError.message);
       }
     }
     return mapMinistry(data);
