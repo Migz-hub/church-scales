@@ -151,10 +151,7 @@ export default function MinistryCreate() {
       await refresh();
       await setActive(m.id);
       toast.success(`Ministério "${m.name}" criado com sucesso`);
-      // Reset para criar outro sem sair da página
-      setName("");
-      const t = TEMPLATES.find((x) => x.id === templateId)!;
-      setFunctions(t.functions.map((f) => ({ id: newId(), ...f })));
+      navigate("/dashboard", { replace: true });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao criar");
     } finally {
